@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define MACHINE_IO 1
+#define OPT_IO(PR) if (!MACHINE_IO) PR;
+
 struct int_queue
 {
 	int *buf;
@@ -100,8 +103,8 @@ int_queue_print(struct int_queue *q)
 void
 int_print_elem(int n, size_t i)
 {
-	char prefix = i ? ',' : ' ';
-	printf("%c %d", prefix, n);
+	if (i) printf(" %d", n);
+	else printf("%d", n);
 }
 
 int *
@@ -152,7 +155,7 @@ static struct game
 	enum game_mode mode;
 } game_state;
 
-#define MAX_CARDS 12
+#define MAX_CARDS 52
 
 int game_init(void);
 int game_rand_cards(void);
@@ -226,9 +229,11 @@ game_enter_war(void)
 	switch (tick_result)
 	{	// TODO don't know how it should work (example useless because of it's ambigouity)
 		case END_WAR_PLAYER_A:
+			game_grab_cards(game_state.player_a, game_state.player_a, war_ndx + 2);
 			game_grab_cards(game_state.player_b, game_state.player_a, war_ndx + 2);
 			break;
 		case END_WAR_PLAYER_B:
+			game_grab_cards(game_state.player_b, game_state.player_b, war_ndx + 2);
 			game_grab_cards(game_state.player_a, game_state.player_b, war_ndx + 2);
 			break;
 	}
@@ -253,7 +258,7 @@ game_grab_cards(struct int_queue *from, struct int_queue *to, size_t amount)
 	for (size_t i = 0; i < amount; i++)
 	{
 		card = int_queue_pop(from);
-		printf("take %d\n", card);
+		// printf("take %d\n", card);
 		if (card == -1) return;
 		int_queue_push(to, card);
 	}
@@ -269,14 +274,14 @@ game_cycle_cards(struct int_queue *a, struct int_queue *b)
 int
 game_tick(void)
 {
-	printf("\nplayer a");
-	int_queue_print(game_state.player_a);
-	printf("\nplayer b");
-	int_queue_print(game_state.player_b);
-	printf("\n");
+	// printf("\nplayer a");
+	// int_queue_print(game_state.player_a);
+	// printf("\nplayer b");
+	// int_queue_print(game_state.player_b);
+	// printf("\n");
 
 	// printing before check
-	printf("tick %zu of %zu\n", game_state.conflicts + 1, game_state.max_conflicts);
+	// printf("tick %zu of %zu\n", game_state.conflicts + 1, game_state.max_conflicts);
 	if (game_state.conflicts >= game_state.max_conflicts) return END_MAX_CONFLICTS;
 	
 	if (game_state.player_b->size <= 0) return END_PLAYER_A;
@@ -326,9 +331,11 @@ game_war_tick(size_t ndx)
 	int card_a = int_queue_nth(game_state.player_a, ndx);
 	int card_b = int_queue_nth(game_state.player_b, ndx);
 
-	printf("war: %d vs %d (%d, %d)\n", card_a & 0xfc, card_b & 0xfc, card_a, card_b);
+	// printf("war: %d vs %d (%d, %d)\n", card_a & 0xfc, card_b & 0xfc, card_a, card_b);
 
-	if ((game_state.conflicts += 2) > game_state.max_conflicts) return END_WAR_MAX_CONFLICTS;
+	if (game_state.conflicts > game_state.max_conflicts) return END_WAR_MAX_CONFLICTS;
+
+	game_state.conflicts += 2;
 
 	switch (game_cmp_cards(card_a, card_b))
 	{
@@ -346,6 +353,7 @@ game_war_tick(size_t ndx)
 int
 game_custom_output(int outcome)
 {
+	printf("%d ", outcome - 1);
 	switch (outcome)
 	{
 		case END_MAX_CONFLICTS:
@@ -366,21 +374,21 @@ game_custom_output(int outcome)
 int
 main(void)
 {
-	puts("seed: ");
+	OPT_IO(puts("seed: "))
 	scanf("%d", &game_state.seed);
 
-	puts("mode: ");
+	OPT_IO(puts("mode: "))
 	scanf("%d", &game_state.mode);
 
-	puts("max conflicts: ");
-	scanf("%d", &game_state.max_conflicts);
+	OPT_IO(puts("max conflicts: "))
+	scanf("%zu", &game_state.max_conflicts);
 
 	if (game_init()) return 1;
 
 	int res = 0;
 	while (!(res = game_tick()));
 
-	printf("end: %d\n", res);
+	OPT_IO(printf("end: %d\n", res))
 
 	return game_custom_output(res);
 };
